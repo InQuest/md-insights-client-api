@@ -51,12 +51,3 @@ class SettingsLoader:
 
     def get_config(self):
         return self.config
-
-
-__all__ = [
-    "CHOICE_LOG_LEVELS",
-    "CONFIG_FILE_DEFAULT",
-    "DEFAULT_LOGLEVEL",
-    "MD_INSIGHTS_API_HOST",
-    "SettingsLoader",
-]

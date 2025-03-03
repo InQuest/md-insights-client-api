@@ -5,18 +5,22 @@ key provisioned for access.
 
 import gzip
 import logging
-import os
 import re
 import shutil
-import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from importlib.metadata import version
 
 import requests
 
-from .exceptions import *
-from .settings import *
+from .exceptions import ConfigurationError, FeedAccessError
+from .settings import (
+    CHOICE_LOG_LEVELS,
+    CONFIG_FILE_DEFAULT,
+    DEFAULT_LOGLEVEL,
+    MD_INSIGHTS_API_HOST,
+    SettingsLoader,
+)
 
 __application_name__ = "md-insights-client"
 __version__ = version(__application_name__)
@@ -66,9 +70,8 @@ def fetch_feeds(api_key, feeds=[]):
                 logging.error(
                     "response body from server response: %s", response.text
                 )
-            parser.exit(
-                status=1,
-                message=f"API error attempting to retrieve feed {feed}: {e}\n",
+            raise FeedAccessError(
+                f"API error attempting to retrieve feed: {e}"
             )
 
         # Extract filename from response header

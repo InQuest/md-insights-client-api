@@ -7,6 +7,3 @@ class ConfigurationError(Exception):
 
 class FeedAccessError(Exception):
     "Exception indicating a problem accessing the feed"
-
-
-__all__ = ["ConfigurationError", "FeedAccessError"]
