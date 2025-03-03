@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "md-insights-client"
+version = "0.1.0"
+authors = [
+    { name="Darren Spruell", email="darren.spruell@opswat.com" },
+]
+description = "OPSWAT MetaDefender InSights API client"
+readme = "README.md"
+dependencies = [
+    "PyYAML==6.0.2",
+    "requests==2.32.3",
+]
+classifiers = [
+    # "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    # "Development Status :: 5 - Production/Stable",
+    # "Development Status :: 6 - Mature",
+    "License :: OSI Approved :: ISC License (ISCL)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+
+[project.scripts]
+md-insights-snapshot-client = "md_insights_client.insights_snapshot:cli"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/InQuest/md-insights-client-api/issues"
+"Homepage" = "https://github.com/InQuest/md-insights-client-api"

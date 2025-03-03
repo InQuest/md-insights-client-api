@@ -1,0 +1,29 @@
+---
+# MetaDefender InSights API client configuration.
+
+
+# Logging level. One of: critical, error, warning, info, debug. This can also
+# be updated at runtime using the `--log-level` argument.
+log_level: info
+
+# API key. Uncomment this and set it to the MD InSights API key provided by
+# your OPSWAT representative.
+#api_key: ""
+
+# Enabled feed snapshots. A snapshot is a point-in-time indicator collection
+# available as a download, consisting of only indicators that are active (not
+# expired) at that point in time. Each MD InSights feed is available as multiple
+# feeds (one or more for each supported indicator type). Uncomment all feeds
+# for which you are licensed and that you wish to download.
+md_insights_feeds:
+  # MetaDefender InSights C2 feeds
+  #- insights-c2-domain
+  #- insights-c2-ip
+
+  # MetaDefender InSights TI feeds
+  #- insights-ti-domain
+  #- insights-ti-ip
+  #- insights-ti-url
+
+  # MetaDefender InSights OSINT feeds
+  #- insights-osint-domain
