@@ -76,10 +76,13 @@ def fetch_feeds(api_key, feeds=[]):
 
         # Check if the response is a JSON error instead of gzipped content
         content_type = response.headers.get("Content-Type", "")
-        if "application/json" in content_type or response.content.startswith(b'{'):
+        if "application/json" in content_type or response.content.startswith(
+            b"{"
+        ):
             try:
                 import json
-                error_data = json.loads(response.content.decode('utf-8'))
+
+                error_data = json.loads(response.content.decode("utf-8"))
                 if "error" in error_data:
                     raise FeedAccessError(
                         f"API error for feed '{feed}': {error_data['error']}"
@@ -127,6 +130,7 @@ def fetch_feeds(api_key, feeds=[]):
             # If we get here, the file isn't gzipped - check if it's an error response
             try:
                 import json
+
                 with open(gz_file, "r") as f:
                     error_data = json.load(f)
                 if "error" in error_data:
@@ -142,9 +146,7 @@ def fetch_feeds(api_key, feeds=[]):
                     f"Response is not a valid gzipped file or JSON error for feed '{feed}'"
                 )
         except Exception as e:
-            raise FeedAccessError(
-                f"Error processing feed '{feed}': {e}"
-            )
+            raise FeedAccessError(f"Error processing feed '{feed}': {e}")
 
 
 def cli():
