@@ -26,6 +26,7 @@ classifiers = [
 
 [project.scripts]
 md-insights-snapshot-client = "md_insights_client.insights_snapshot:cli"
+md-insights-client = "md_insights_client.insights_query:cli"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/InQuest/md-insights-client-api/issues"

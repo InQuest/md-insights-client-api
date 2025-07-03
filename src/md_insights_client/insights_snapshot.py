@@ -74,6 +74,25 @@ def fetch_feeds(api_key, feeds=[]):
                 f"API error attempting to retrieve feed: {e}"
             )
 
+        # Check if the response is a JSON error instead of gzipped content
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type or response.content.startswith(b'{'):
+            try:
+                import json
+                error_data = json.loads(response.content.decode('utf-8'))
+                if "error" in error_data:
+                    raise FeedAccessError(
+                        f"API error for feed '{feed}': {error_data['error']}"
+                    )
+                else:
+                    raise FeedAccessError(
+                        f"Unexpected JSON response for feed '{feed}': {error_data}"
+                    )
+            except json.JSONDecodeError:
+                raise FeedAccessError(
+                    f"Invalid response format for feed '{feed}': {response.content.decode('utf-8', errors='replace')}"
+                )
+
         # Extract filename from response header
         content_disposition = response.headers.get("Content-Disposition")
         if content_disposition:
@@ -91,19 +110,41 @@ def fetch_feeds(api_key, feeds=[]):
         logging.info("wrote %d bytes to %s", len(response.content), gz_file)
 
         # Decompress and write response data out to a datestamped file
-        with gzip.open(gz_file) as f_in:
-            # Example: inquest-insights-c2-ip.json.gz
-            #       -> inquest-insights-c2-ip-20241029.json
-            today_str = datetime.today().strftime("%Y%m%d")
-            out_filename = re.sub(
-                r"\.json\.gz$", f"-{today_str}.json", gz_file
-            )
+        try:
             with gzip.open(gz_file, "rb") as f_in:
+                # Example: inquest-insights-c2-ip.json.gz
+                #       -> inquest-insights-c2-ip-20241029.json
+                today_str = datetime.today().strftime("%Y%m%d")
+                out_filename = re.sub(
+                    r"\.json\.gz$", f"-{today_str}.json", gz_file
+                )
                 with open(out_filename, "wb") as f_out:
                     shutil.copyfileobj(f_in, f_out)
                 logging.info(
                     "wrote uncompressed feed data to %s\n", out_filename
                 )
+        except gzip.BadGzipFile:
+            # If we get here, the file isn't gzipped - check if it's an error response
+            try:
+                import json
+                with open(gz_file, "r") as f:
+                    error_data = json.load(f)
+                if "error" in error_data:
+                    raise FeedAccessError(
+                        f"API error for feed '{feed}': {error_data['error']}"
+                    )
+                else:
+                    raise FeedAccessError(
+                        f"Unexpected response format for feed '{feed}': {error_data}"
+                    )
+            except json.JSONDecodeError:
+                raise FeedAccessError(
+                    f"Response is not a valid gzipped file or JSON error for feed '{feed}'"
+                )
+        except Exception as e:
+            raise FeedAccessError(
+                f"Error processing feed '{feed}': {e}"
+            )
 
 
 def cli():
