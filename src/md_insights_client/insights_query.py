@@ -378,7 +378,10 @@ def cli():
         parser.error(f"unable to load specified configuration: {e}")
 
     log_level = args.log_level or settings.log_level
-    logging.getLogger().setLevel(log_level.upper())
+    try:
+        logging.getLogger().setLevel(log_level.upper())
+    except ValueError as e:
+        parser.error(f"unable to set specified logging level: {e}")
 
     if log_level == "debug":
         from copy import deepcopy

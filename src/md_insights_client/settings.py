@@ -49,5 +49,10 @@ class SettingsLoader:
         self.config_dict["conf_file"] = str(self.conf_file)
         self.config = SimpleNamespace(**self.config_dict)
 
+        # Set an explicit default logging level if absent in the
+        # configuration
+        if not getattr(self.config, "log_level", None):
+            self.config.log_level = DEFAULT_LOGLEVEL
+
     def get_config(self):
         return self.config
