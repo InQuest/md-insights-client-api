@@ -47,7 +47,7 @@ class SettingsLoader:
         with self.conf_file.open("r") as c:
             self.config_dict = safe_load(c)
         self.config_dict["conf_file"] = str(self.conf_file)
-        self.config = SimpleNamespace(self.config_dict)
+        self.config = SimpleNamespace(**self.config_dict)
 
     def get_config(self):
         return self.config

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "md-insights-client"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
     { name="Darren Spruell", email="darren.spruell@opswat.com" },
 ]
@@ -26,6 +26,7 @@ classifiers = [
 
 [project.scripts]
 md-insights-snapshot-client = "md_insights_client.insights_snapshot:cli"
+md-insights-query-client = "md_insights_client.insights_query:cli"
 
 [project.urls]
 "Bug Tracker" = "https://github.com/InQuest/md-insights-client-api/issues"
