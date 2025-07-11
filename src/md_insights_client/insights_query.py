@@ -8,6 +8,8 @@ import logging
 import re
 from argparse import ArgumentParser
 from importlib.metadata import version
+from ipaddress import ip_address
+from tabulate import tabulate
 from typing import List, Union
 
 import requests
@@ -43,8 +45,11 @@ def _chunks(lst, n):
 
 def _is_ip_address(artifact: str) -> bool:
     """Check if artifact is an IP address."""
-    ip_pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-    return bool(re.match(ip_pattern, artifact))
+    try:
+        ip_address(artifact)
+        return True
+    except ValueError:
+        return False
 
 
 def _is_domain_name(artifact: str) -> bool:
@@ -94,7 +99,7 @@ def _merge_results(
 
 
 def c2_dns_query(api_key: str, artifacts: Union[str, List[str]]) -> dict:
-    """Query the InSights API to determine if domain names are C&C endpoints.
+    """Query the InSights API to determine if domain names are C2 endpoints.
 
     Arguments:
     - api_key: MD InSights API key provisioned by OPSWAT.
@@ -134,7 +139,7 @@ def c2_dns_query(api_key: str, artifacts: Union[str, List[str]]) -> dict:
 
 
 def c2_ip_query(api_key: str, artifacts: Union[str, List[str]]) -> dict:
-    """Query the InSights API to determine if IP addresses are C&C endpoints.
+    """Query the InSights API to determine if IP addresses are C2 endpoints.
 
     Arguments:
     - api_key: MD InSights API key provisioned by OPSWAT.
@@ -301,6 +306,12 @@ def cli():
         help="configuration file path (default: %(default)s)",
     )
     parser.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        help="output raw JSON data from API response",
+    )
+    parser.add_argument(
         "-l",
         "--log-level",
         choices=CHOICE_LOG_LEVELS,
@@ -400,18 +411,124 @@ def cli():
     try:
         if args.query_type == "c2-dns":
             result = c2_dns_query(settings.api_key, args.artifacts)
+            headers = ["artifact", "details"]
+            data = []
+            if result["details"]:
+                data.append(headers)
+                for artifact, details in result["details"].items():
+                    data.append([artifact, details])
         elif args.query_type == "c2-ip":
             result = c2_ip_query(settings.api_key, args.artifacts)
+            headers = ["artifact"]
+            data = []
+            if result["details"]:
+                for artifact, details in result["details"].items():
+                    rowdata = [artifact]
+                    dfields = details.keys()
+                    if "asn" in dfields:
+                        if details.get("asn"):
+                            headers.append("asn")
+                            rowdata.append(details["asn"])
+                    if "country" in dfields:
+                        if details.get("country"):
+                            headers.append("country")
+                            rowdata.append(details["country"])
+                    headers.append("description")
+                    rowdata.append(details["description"])
+                    data.append(rowdata)
+                data.insert(0, headers)
         elif args.query_type == "reputation":
             result = reputation_query(
                 settings.api_key, args.artifacts, args.max_batch_size
             )
+            headers = [
+                "artifact",  # artifact name
+                "score",  # score (int)
+                "src_count",  # alarmed/evaluated
+                "inquest",  # bool
+                "opswat",  # bool
+                "rep_srcs",  # list of sources (combined)
+            ]
+            data = []
+            for artifact, details in result["records"].items():
+                if details["sources_alarmed"] != 0:
+                    srcs = []
+                    rowdata = [artifact]
+                    rowdata.append(details["score"])
+                    src_count = (
+                        f'{details["sources_alarmed"]}'
+                        f'/{details["sources_evaluated"]}'
+                    )
+                    rowdata.append(src_count)
+                    for ds in ("inquest", "opswat"):
+                        if details["report"][ds].get("hits"):
+                            rowdata.append("Y")
+                            srcs.extend(details["report"][ds]["sources"])
+                        else:
+                            rowdata.append("N")
+                    rowdata.append(", ".join(srcs))
+                    data.append(rowdata)
+            if data:
+                data.insert(0, headers)
         elif args.query_type == "all":
             result = all_query(
                 settings.api_key, args.artifacts, args.max_batch_size
             )
+            headers = [
+                "artifact",  # artifact name
+                "score",  # score (int)
+                "rep",  # reputation hit (bool)
+                "c2",  # c2 hit (bool)
+                "src_count",  # alarmed/evaluated
+                "inquest",  # bool
+                "opswat",  # bool
+                "rep_srcs",  # list of sources (combined)
+                "c2_desc",  # C2 description
+            ]
+            data = []
+            for artifact, details in result["results"].items():
+                if details["c2"] or details["reputation"]["score"] != 0:
+                    srcs = []
+                    rowdata = [artifact]
+                    rep_score = details["reputation"]["score"]
+                    if isinstance(details["c2"], str):
+                        c2_details = details["c2"]
+                    elif isinstance(details["c2"], dict):
+                        c2_details = details["c2"].get("description")
+                    else:
+                        logging.warning(
+                            "artifact C2 field contains unexpected data: %s",
+                            details.get("c2"),
+                        )
+                        c2_details = None
+                    rowdata.append(rep_score)
+                    src_count = (
+                        f'{details["reputation"]["sources_alarmed"]}'
+                        f'/{details["reputation"]["sources_evaluated"]}'
+                    )
+                    rep_hit = "Y" if rep_score else "N"
+                    c2_hit = "Y" if c2_details else "N"
+                    rowdata.append(rep_hit)
+                    rowdata.append(c2_hit)
+                    rowdata.append(src_count)
+                    for ds in ("inquest", "opswat"):
+                        if details["reputation"]["report"][ds].get("hits"):
+                            rowdata.append("Y")
+                            srcs.extend(
+                                details["reputation"]["report"][ds]["sources"]
+                            )
+                        else:
+                            rowdata.append("N")
+                    rowdata.append(", ".join(srcs))
+                    rowdata.append(c2_details)
+                    data.append(rowdata)
+            if data:
+                data.insert(0, headers)
 
-        print(json.dumps(result, indent=2))
-
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            if data:
+                print(tabulate(data, headers="firstrow"))
     except (ConfigurationError, FeedAccessError, ValueError) as e:
         parser.error(f"Error attempting to query API: {e}")
