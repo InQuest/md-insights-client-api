@@ -51,15 +51,19 @@ To use this command, provide multiple positional arguments to the script.
 
 - The first argument is the **query type**, such as `c2-dns`, `c2-ip`,
   `reputation` or `all`. The special `all` type autodetects the artifact
-  format(s) to query the correct collections.
+  format(s) to query all relevant collections.
 - The second and subsequent arguments are the artifacts for which to query.
-  One or more artifacts such as an IP address or domain name may be specified.
+  One or more artifacts such as IP addresses or domain names may be specified.
 
 For example:
 
 ```
 md-insights-query-client all appleprocesshub.com apimonger.com
 ```
+
+By default, response data is output in tabular format, one indicator per row
+that is found in MD InSights collections. If you prefer to see the raw JSON
+response format from the API, use the `-j/--json` option.
 
 ### md-insights-snapshot-client
 
