@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "md-insights-client"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     { name="Darren Spruell", email="darren.spruell@opswat.com" },
 ]
