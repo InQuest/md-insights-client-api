@@ -27,3 +27,22 @@ md_insights_feeds:
 
   # MetaDefender InSights OSINT feeds
   #- insights-osint-domain
+
+# Anomali ThreatStream integration settings
+# Uncomment and configure to enable automatic enrichment push to ThreatStream
+
+# API key for Anomali ThreatStream in format "username:apikey"
+#anomali_api_key: ""
+
+# Base URL for Anomali ThreatStream API (default: https://api.threatstream.com/api/v2)
+#anomali_api_url: "https://api.threatstream.com/api/v2"
+
+# Automatically push enrichments to ThreatStream when querying IOCs (default: false)
+#anomali_auto_push: false
+
+# Traffic Light Protocol (TLP) for shared intelligence (default: amber)
+# Options: white, green, amber, red
+#anomali_tlp: "amber"
+
+# Source name to use in ThreatStream for MD Insights enrichments (default: OPSWAT_MDInSights)
+#anomali_source_name: "OPSWAT_MDInSights"
