@@ -53,6 +53,22 @@ class SettingsLoader:
         # configuration
         if not getattr(self.config, "log_level", None):
             self.config.log_level = DEFAULT_LOGLEVEL
+        
+        # Set Anomali ThreatStream defaults if not configured
+        if not getattr(self.config, "anomali_api_key", None):
+            self.config.anomali_api_key = None
+        
+        if not getattr(self.config, "anomali_api_url", None):
+            self.config.anomali_api_url = "https://api.threatstream.com/api/v2"
+        
+        if not getattr(self.config, "anomali_auto_push", None):
+            self.config.anomali_auto_push = False
+        
+        if not getattr(self.config, "anomali_tlp", None):
+            self.config.anomali_tlp = "amber"
+        
+        if not getattr(self.config, "anomali_source_name", None):
+            self.config.anomali_source_name = "OPSWAT_MDInSights"
 
     def get_config(self):
         return self.config
