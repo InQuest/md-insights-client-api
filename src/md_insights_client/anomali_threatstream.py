@@ -75,15 +75,65 @@ class ThreatStreamClient:
                 params={'value': ioc_value, 'limit': 1},
                 timeout=30
             )
+            
+            # Log the raw response for debugging
+            logger.debug(f"API Response Status: {response.status_code}")
+            logger.debug(f"API Response Headers: {dict(response.headers)}")
+            logger.debug(f"API Response Body: {response.text[:1000]}")  # First 1000 chars
+            
+            # Check for authentication/authorization errors
+            if response.status_code == 401:
+                logger.error(
+                    f"Authentication failed (401). Please check your API credentials.\n"
+                    f"Using: {self.api_key.split(':')[0]}:*** with URL: {self.base_url}\n"
+                    f"Server response: {response.text}"
+                )
+                return None
+            elif response.status_code == 403:
+                logger.error(
+                    f"Authorization failed (403). Your API key may not have the required permissions.\n"
+                    f"Server response: {response.text}"
+                )
+                return None
+            elif response.status_code == 404:
+                logger.error(
+                    f"API endpoint not found (404). Check your API URL: {self.base_url}\n"
+                    f"Server response: {response.text}"
+                )
+                return None
+            
             response.raise_for_status()
-            data = response.json()
+            
+            # Check if response is JSON
+            content_type = response.headers.get('content-type', '')
+            if 'application/json' not in content_type:
+                logger.error(
+                    f"API returned non-JSON response (content-type: {content_type}).\n"
+                    f"This often indicates incorrect API URL or authentication issues.\n"
+                    f"Full response:\n{response.text}"
+                )
+                return None
+            
+            try:
+                data = response.json()
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"Failed to parse API response as JSON: {e}\n"
+                    f"Response status: {response.status_code}\n"
+                    f"Full response:\n{response.text}"
+                )
+                return None
             
             if data.get('objects'):
                 indicator_id = data['objects'][0]['id']
                 logger.info(f"Found existing indicator {indicator_id} for {ioc_value}")
                 return indicator_id
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error searching for indicator: {e}")
+            logger.error(
+                f"Network error searching for indicator: {e}\n"
+                f"API URL: {self.base_url}\n"
+                f"Auth header: apikey {self.api_key.split(':')[0]}:***"
+            )
             return None
         
         # Create new indicator
@@ -113,16 +163,63 @@ class ThreatStreamClient:
                 json=body,
                 timeout=30
             )
+            
+            # Log the raw response for debugging
+            logger.debug(f"Create API Response Status: {response.status_code}")
+            logger.debug(f"Create API Response Headers: {dict(response.headers)}")
+            logger.debug(f"Create API Response Body: {response.text[:1000]}")
+            
+            # Check for specific error codes
+            if response.status_code == 401:
+                logger.error(
+                    f"Authentication failed (401) when creating indicator.\n"
+                    f"Server response: {response.text}"
+                )
+                return None
+            elif response.status_code == 403:
+                logger.error(
+                    f"Authorization failed (403) when creating indicator.\n"
+                    f"Server response: {response.text}"
+                )
+                return None
+            
             response.raise_for_status()
-            result = response.json()
+            
+            # Check if response is JSON
+            content_type = response.headers.get('content-type', '')
+            if 'application/json' not in content_type:
+                logger.error(
+                    f"Create API returned non-JSON response (content-type: {content_type}).\n"
+                    f"Full response:\n{response.text}"
+                )
+                return None
+            
+            try:
+                result = response.json()
+            except json.JSONDecodeError as e:
+                logger.error(
+                    f"Failed to parse create response as JSON: {e}\n"
+                    f"Full response:\n{response.text}"
+                )
+                return None
             
             if result.get('import_session_id'):
                 logger.info(f"Created import session {result['import_session_id']} for {ioc_value}")
                 # Note: In production, you'd want to poll for completion
                 # For now, we'll just return the session ID
                 return result.get('import_session_id')
+            else:
+                logger.error(
+                    f"Unexpected response format when creating indicator.\n"
+                    f"Response: {json.dumps(result, indent=2)}"
+                )
+                return None
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error creating indicator: {e}")
+            logger.error(
+                f"Network error creating indicator: {e}\n"
+                f"Request URL: {self.base_url}/intelligence/import/\n"
+                f"Request body: {json.dumps(body, indent=2)}"
+            )
             return None
     
     def add_enrichment(self, indicator_id: int, enrichment_data: Dict[str, Any]) -> bool:
