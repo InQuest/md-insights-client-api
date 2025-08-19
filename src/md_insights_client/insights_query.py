@@ -22,6 +22,7 @@ from .settings import (
     MD_INSIGHTS_API_HOST,
     SettingsLoader,
 )
+from .anomali_threatstream import ThreatStreamClient, process_insights_enrichment
 
 __application_name__ = "md-insights-client"
 __version__ = version(__application_name__)
@@ -324,6 +325,11 @@ def cli():
         version=__version__,
         help="print package version",
     )
+    parser.add_argument(
+        "--push-to-threatstream",
+        action="store_true",
+        help="push enrichment data to Anomali ThreatStream (requires configured API key)",
+    )
 
     # Query type subcommands
     subparsers = parser.add_subparsers(dest="query_type", help="Query type")
@@ -538,6 +544,68 @@ def cli():
         else:
             if data:
                 print(tabulate(data, headers="firstrow"))
+        
+        # Push to ThreatStream if requested
+        if args.push_to_threatstream or getattr(settings, 'anomali_auto_push', False):
+            # Check if we have the necessary configuration
+            if not getattr(settings, 'anomali_api_key', None):
+                logging.warning(
+                    "Cannot push to ThreatStream: anomali_api_key not configured. "
+                    "Please set it in your configuration file."
+                )
+            else:
+                try:
+                    # Initialize ThreatStream client
+                    ts_client = ThreatStreamClient(
+                        api_key=settings.anomali_api_key,
+                        base_url=getattr(settings, 'anomali_api_url', None),
+                        source_name=getattr(settings, 'anomali_source_name', None),
+                        tlp=getattr(settings, 'anomali_tlp', None)
+                    )
+                    
+                    # Convert result to format expected by process_insights_enrichment
+                    if args.query_type == "all":
+                        enrichment_result = process_insights_enrichment(result, ts_client)
+                    else:
+                        # For other query types, we need to format the data appropriately
+                        formatted_result = {"results": {}}
+                        
+                        if args.query_type == "reputation":
+                            for artifact, details in result.get("records", {}).items():
+                                formatted_result["results"][artifact] = {
+                                    "artifact_type": "ip" if _is_ip_address(artifact) else "domain",
+                                    "reputation": details,
+                                    "c2": None
+                                }
+                        elif args.query_type in ["c2-dns", "c2-ip"]:
+                            for artifact, details in result.get("details", {}).items():
+                                formatted_result["results"][artifact] = {
+                                    "artifact_type": "ip" if _is_ip_address(artifact) else "domain",
+                                    "reputation": None,
+                                    "c2": details
+                                }
+                        
+                        enrichment_result = process_insights_enrichment(formatted_result, ts_client)
+                    
+                    # Report results
+                    if enrichment_result['enriched'] > 0:
+                        print(f"\nThreatStream enrichment complete:")
+                        print(f"  - Processed: {enrichment_result['processed']} artifacts")
+                        print(f"  - Enriched: {enrichment_result['enriched']} indicators")
+                        if enrichment_result['errors'] > 0:
+                            print(f"  - Errors: {enrichment_result['errors']}")
+                        
+                        if log_level == "debug":
+                            for detail in enrichment_result['details']:
+                                logging.debug("ThreatStream enrichment detail: %s", detail)
+                    else:
+                        logging.info("No enrichment data to push to ThreatStream")
+                        
+                except Exception as e:
+                    logging.error(f"Failed to push to ThreatStream: {e}")
+                    if log_level == "debug":
+                        import traceback
+                        logging.debug(traceback.format_exc())
 
     except (ConfigurationError, FeedAccessError, ValueError) as e:
         parser.error(f"error attempting to query API: {e}")
